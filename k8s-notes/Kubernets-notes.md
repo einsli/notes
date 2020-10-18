@@ -39,7 +39,7 @@ k8s分为两类结点:
 
 **k8s架构图下**
 
-<img src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1603039583880&di=a7f6485fdd77fd6c7ea38cd78b69924f&imgtype=0&src=http%3A%2F%2Fwww.linuxidc.com%2Fupload%2F2020_04%2F200428200267162.png">
+![avatar](../assets/k8s-notes/k8s-structure.png)
 
 容器启动的一个过程:
 
