@@ -28,9 +28,10 @@ k8s分为两类结点:
 
 ### 1.3.1 master 节点的组件(程序)
 
-- Api Server：接收客户端操作可执行的k8s命令；
-- scheduler：从多个work node节点的组件中选举一个来启动服务
-- controller manager：向work节点的kubelet发送指令
+- Api Server：集群的统一入口，各组件的协调者，以RestFul API提供接口服务，所有对象资源的增删改查和监听等操作都交给API Server处理后再提交给Etcd存储 (接收客户端操作可执行的k8s命令)；
+- scheduler：根据调度算法为新创建的Pod选择一个Node节点，可以任意部署，可以部署在同一个节点上，也可以部署在不同节点上（从多个work node节点的组件中选举一个来启动服务)；
+- controller manager：处理集群中常规后台任务，一个资源对应一个控制器，而controller manager就是负责管理这些控制器的（向work节点的kubelet发送指令);
+- etcd: 分布式键值存储系统，用于保存集群状态数据，比如Pod，Service等对象信息（欢聚话说即 k8s数据库，用来注册节点、服务、记录账号等一系列操作）
 
 ### 1.3.2 node 节点的组件(程序)
 
@@ -51,8 +52,3 @@ k8s分为两类结点:
 - controller manager 会向选定的结点（例如节点/node1）发送指令消息，即controller→kubectl
 - kubectl 收到controller传递过来的信息后，会向本地主机docker发送指令,启动一个容器（即pod），即kubectl→（本地）docker
 
-## 1.4 etcd数据库
-
-k8s的数据库
-
-用来注册节点、服务、记录账号等一系列操作
