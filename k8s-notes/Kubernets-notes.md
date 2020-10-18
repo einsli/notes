@@ -35,8 +35,9 @@ k8s分为两类结点:
 
 ### 1.3.2 node 节点的组件(程序)
 
-- kubelet：向docker发送指令管理docker容器的；
-- kubeproxy：管理docker容器的网络
+- kubelet：kubectl是master在node节点上的agent，管理本机运行容器的声明周期，比如创建容器、Pod挂载数据卷、下载secret、获取容器和结点状态等工作，kubelet将每个pod转换成一组容器（向docker发送指令管理docker容器的）；
+- kubeproxy：在node节点上实现pod网络代理，维护网络规则和四层负载均衡工作(管理docker容器的网络)；
+- docker或rocket：容器引擎，运行容器。
 
 **k8s架构图下**
 
@@ -52,3 +53,57 @@ k8s分为两类结点:
 - controller manager 会向选定的结点（例如节点/node1）发送指令消息，即controller→kubectl
 - kubectl 收到controller传递过来的信息后，会向本地主机docker发送指令,启动一个容器（即pod），即kubectl→（本地）docker
 
+## 1.4 pod 概念(重要)
+
+- 最小部署单元
+- 一个pod可以有一个或者多个容器——容器组
+- 一组容器的集合
+- 一个pod中的容器共享网络命名空间
+- pod是短暂的
+
+**注:**
+
+k8是否可以直接启动容器？
+
+答: 不能，因为k8s里面最小的调度单元是pod。
+
+## 1.5 controllers
+
+控制器，控制pod，启动、停止、删除pod
+
+- ReplicaSet：确保预期的pod副本数数量
+- Deployment：无状态应用部署
+- StatefulSet：有状态应用部署
+- DaemonSet：确保所有node运行同一个pod
+- Job：一次性任务
+- Cronjob：定时任务
+
+## 1.6 Service
+
+将一组pod关联起来，提供一个统一的入口，及时pod地址发生改变，这个统一入口也不会变化，可以保证用户访问不受影响。
+
+- 防止pod失联；
+- 定义一组pod的访问策略。
+
+**service 内部流程**
+
+![avatar](../assets/k8s-notes/service-process.png)
+
+## 1.7 Label
+
+一组pod是一个统一的标签，service是通过标签和一组pod进行关联的。
+
+- 标签，附加到某个资源上，用于关联对象、查询和筛选。
+
+**label图示(Services下面的名字如nginx即为label)**
+
+![avatar](../assets/k8s-notes/label-notes.png)
+
+## 1.8 Namespace
+
+用来隔离pod运行空间(默认情况下，pod是可以互相访问的)；
+
+使用场景：
+
+- 为不同的公司提供隔离的pod运行环境；
+- 为开发环境、测试环境、生产环境分别准备不同的命名空间，进行隔离。
