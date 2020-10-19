@@ -107,3 +107,89 @@ k8是否可以直接启动容器？
 
 - 为不同的公司提供隔离的pod运行环境；
 - 为开发环境、测试环境、生产环境分别准备不同的命名空间，进行隔离。
+
+
+
+# 第二节 搭建一个完成的kubernets集群
+
+## 2.1 安装步骤
+
+1. 生产环境k8s平台规划
+2. 服务器硬件配置推荐
+3. 官方提供三种部署方式
+4. 为Etcd和APIServer自签SSL证书
+5. Etcd数据库集群部署
+6. 部署Master组件
+7. 部署Node组件
+8. 部署K8s集群网络
+9. 部署Web UI(DashBoard)
+10. 部署集群内部DNS解析服(CoreDNS)
+
+## 2.2 生产环境k8s平台规划
+
+架构类别
+
+单master节点和多master节点
+
+**单master节点**
+
+- 略
+
+**多master节点**
+
+- 一般建议用三个master节点(避免单节点故障)，用load balancer做负载均衡
+- etcd必须用三台(必须是奇数，避免选举问题)
+- work节点越多越好
+
+**多master节点架构图**
+
+![avatar](../assets/k8s-notes/master-node-structure.png)
+
+**平台规划(两master两node,演示)**
+
+![avatar](../assets/k8s-notes/k8s-platform-plan.png)
+
+**服务器配置**
+
+![avatar](../assets/k8s-notes/machine-configure.png)
+
+## 2.3 k8s安装
+
+基本步骤
+
+- 配置三个节点主机名
+- 关闭防火墙
+- 关闭selinux
+- 关闭swap
+- 修改hosts(三个节点可以基于主机名通信)
+- 配置时间同步
+
+### 2.3.1 单节点集群
+
+先实现一个master，两个node的集群。
+
+1. 集群规划
+
+   master
+
+   主机名：k8s-maste1
+
+   IP: 192.168.12.13
+
+   worker1
+
+   主机名：k8s-node1
+
+   IP：192.168.12.15
+
+   work2
+
+   主机名：k8s-node2
+
+   IP：192.168.12.16
+
+   k8s版本：1.6
+
+   试验方式：离线、二进制安装
+
+   操作系统版本：centos7.7
