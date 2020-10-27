@@ -330,90 +330,171 @@ k8是否可以直接启动容器？
 
    cfssl(一般用于这个)
 
-   3.3 部署etcd
+   1. k8s安装
 
-   etcd需要三台虚拟机
+      3.1 加密
 
-   在master、node1、node2上分别安装一个etcd（仅学习试验用，生产一般将etcd部署到独立服务器）
+      3.1.1 对称加密：加密解密用相同的密钥
 
-   3.3.1 给etcd颁发证书（用到的包为TLS.tar.gz）
+      3.1.2 非对称加密：用公钥-私钥的密钥对实现加密
 
-   操作路径为 /root
+      3.1.3 单向加密：只能加密，不能解密（比如md5）
 
-   ```bash
-   # tar -zxvf TLS.tar.gz
-   
-   // 生成一个TLS文件
-   # ls TLS
-   // cfssl cfssl-certinfo  cfssjson cfssl.sh etcd k8s
-   // 其中etcd跟k8s问文件夹为etcd为etcd办法证书使用的，k8s为k8s颁发证书使用的
-   
-   # cd TLS/etcd
-   # ./cfssl.sh
-   # cd etcd 
-   # ls
-   // ca-config.json ca-csr.json generate_etcd_cert.sh server-csr.json
-   // 修改server-csr.json,里面的hosts，为etcd所在的主机结点
-   // 
-   ```
+      3.2 SSL 证书和相关概念
 
-   ```bash
-   // 在/root/TLS/etcd目录下
-   # ./generate_etcd_cert.sh
-   // 即可实现ca证书的生成与颁发
-   
-   # ls *pem
-   // ca-key.pem ca.pem server-key.pem server.pem
-   // ca 开头的是服务器ca自己的证书，server开头的是etcd的证书
-   ```
+      PKI(Public Key Infrasturcture 公钥基础设施)
 
-   过程总结为下面三步
+      一个完整的PKI包括以下几个部分
 
-   1）创建证书颁发机构
+      1）端实体（申请者）
 
-   2）填写表单-写明etcd所在结点的ip
+      2）注册结构（RC）
 
-   3）向证书颁发机构申请证书
+      3）签证机构（CA）
 
-   3.3.2 安装etcd
+      4）证书撤销列表（CRL）
 
-   /root/ectd.tar.gz
+      5）证书存取库
 
-   ```bash
-   # cd /root
-   # tar -zxvf ectd.tar.gz
-   // 解压后会生成一个文件和一个目录
-   // etcd.service etd(文件夹)
-   
-   // 移动etcd.service
-   # mv etcd.service /usr/lib/systemd/system
-   
-   // 移动etcd(目录)
-   # mv etcd /opt //移动目录根据etcd.service指定的
-   // centos7 systemd的服务管理脚本在那个地方？
-   // /usr/lib/systemd/system
-   
-   // centos6 sysv风格服务器管理脚本在哪？
-   // /etc/rc.d/rcN.d
-   // N 0 1 2 3 4 5 6
-   ```
+      SSL 证书来源：
 
-   修改etcd配置文件
+      网络第三方机构购买，通常这种证书用于让外部用户访问使用
 
-   ```bash
-   // 目录/opt/etcd/cfg/etcd.conf
-   // 有Master与Clustering，需配置一个Master
-   // # [Master]
-   // ETCD_NAME = "etcd-1"
-   // ETCD_DATA_DIR = "/var/lib/etcd/default.etcd"
-   // ETCD_LISTEN_PEER_URLS = "<https://192.168.12.11:2380>" // 用来接收其他etcd发送过来的数据
-   // ETCD_LISTEN_CLIENT_URLS ="<https://192.68.12.11:2379>" // 用来和客户端通信
-   
-   // 集群部分
-   // #[Clustering]
-   // ETCD_INITIAL_ADVERTISE_PEER_URLS = "<https://192.168.12.11:2380>"
-   // ETCD_ADVERTISE_CLIENT_URLS = "<https://192.168.12.11:2379>"
-   // ETCD_INITIAL_CLUSTER = "etcd-1=https://192.168.12.11:2380, etcd-2=https://192.168.12.12:2380, etcd-3=https://192.168.12.13:2380"
-   // ETCD_INITIAL_CLUSTER_TOKEN = "etcd-cluster"
-   // ETCD_INITIAL_CLUSTER_STATE = "new"
-   ```
+      自己给自己生成证书-自签证书，通常用于内网使用
+
+      自建CA
+
+      openssl
+
+      cfssl(一般用于这个)
+
+      
+
+      **注**: cfssl 下载地址 https://pkg.cfssl.org/
+
+      ​      cfssl 源码地址 [<https://github.com/cloudflare/cfssl>](<https://github.com/cloudflare/cfssl>)
+
+      
+
+      3.3 部署etcd
+
+      二进制包下载地址
+
+      https://github.com/etcd-io/etcd/releases
+
+      etcd需要三台虚拟机
+
+      在master、node1、node2上分别安装一个etcd（仅学习试验用，生产一般将etcd部署到独立服务器）
+
+      3.3.1 给etcd颁发证书（用到的包为TLS.tar.gz）
+
+      操作路径为 /root
+
+      ```bash
+      # tar -zxvf TLS.tar.gz
+      
+      // 生成一个TLS文件
+      # ls TLS
+      // cfssl cfssl-certinfo  cfssjson cfssl.sh etcd k8s
+      // 其中etcd跟k8s问文件夹为etcd为etcd办法证书使用的，k8s为k8s颁发证书使用的
+      
+      # cd TLS/etcd
+      # ./cfssl.sh
+      # cd etcd 
+      # ls
+      // ca-config.json ca-csr.json generate_etcd_cert.sh server-csr.json
+      // 修改server-csr.json,里面的hosts，为etcd所在的主机结点
+      // 
+      ```
+
+      ```bash
+      // 在/root/TLS/etcd目录下
+      # ./generate_etcd_cert.sh
+      // 即可实现ca证书的生成与颁发
+      
+      # ls *pem
+      // ca-key.pem ca.pem server-key.pem server.pem
+      // ca 开头的是服务器ca自己的证书，server开头的是etcd的证书
+      ```
+
+      过程总结为下面三步
+
+      1）创建证书颁发机构
+
+      2）填写表单-写明etcd所在结点的ip
+
+      3）向证书颁发机构申请证书
+
+      3.3.2 安装etcd
+
+      /root/ectd.tar.gz
+
+      ```bash
+      # cd /root
+      # tar -zxvf ectd.tar.gz
+      // 解压后会生成一个文件和一个目录
+      // etcd.service etd(文件夹)
+      
+      // 移动etcd.service
+      # mv etcd.service /usr/lib/systemd/system
+      
+      // 移动etcd(目录)
+      # mv etcd /opt //移动目录根据etcd.service指定的
+      // centos7 systemd的服务管理脚本在那个地方？
+      // /usr/lib/systemd/system
+      
+      // centos6 sysv风格服务器管理脚本在哪？
+      // /etc/rc.d/rcN.d
+      // N 0 1 2 3 4 5 6
+      ```
+
+      修改etcd配置文件
+
+      ```bash
+      // 目录/opt/etcd/cfg/etcd.conf
+      # vim /opt/etcd/cfg/etcd.conf
+      // 有Master与Clustering，需配置一个Master
+      // # [Master]
+      // ETCD_NAME = "etcd-1"
+      // ETCD_DATA_DIR = "/var/lib/etcd/default.etcd"
+      // ETCD_LISTEN_PEER_URLS = "<https://192.168.12.13:2380>" // 用来接收其他etcd发送过来的数据
+      // ETCD_LISTEN_CLIENT_URLS ="<https://192.68.12.13:2379>" // 用来和客户端通信
+      
+      // 集群部分
+      // #[Clustering]
+      // ETCD_INITIAL_ADVERTISE_PEER_URLS = "<https://192.168.12.13:2380>"
+      // ETCD_ADVERTISE_CLIENT_URLS = "<https://192.168.12.13:2379>"
+      // ETCD_INITIAL_CLUSTER = "etcd-1=https://192.168.12.13:2380, etcd-2=https://192.168.12.15:2380, etcd-3=https://192.168.12.16:2380"
+      // ETCD_INITIAL_CLUSTER_TOKEN = "etcd-cluster"
+      // ETCD_INITIAL_CLUSTER_STATE = "new"
+      ```
+
+      拷贝证书
+
+      ```bash
+      // 证书在/root/TLS下
+      # cp /root/TLS/etcd/{ca,server,server-key}.pem /opt/ectd/ssl
+      // 如果文件存在 强行复制
+      # \\cp -f /root/TLS/etcd/{ca,server,server-key}.pem /opt/ectd/ssl
+      ```
+
+      将etc管理程序和程序目录发送到node1和node2,并做修改
+
+      在三个节点启动etcd
+
+      ```bash
+      // 启动etcd服务
+      # systemctl start etcd
+      // 设置etcd服务开机启动
+      # systemctl enable etcd.service
+      ```
+
+      3.3.3 查看集群状态
+
+      ```bash
+      # /opt/etcd/bin/etcdctl \\
+      --ca-file=/opt/etcd/ssl/ca.pem --cert-file=/opt/etcd/ssl/server.pem \\
+      --key-file=/opt/etcd/ssl/server-key.pem \\
+      --endpoints = "<https://192.168.12.13:2379>,<https://192.168.12.15:2379>,<https://192.168.12.16:2379>" \\
+      cluster-health
+      ```
