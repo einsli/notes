@@ -777,3 +777,70 @@ k8是否可以直接启动容器？
    ```bash
    # kubeclt get nodes
    ```
+
+6. 安装插件
+
+   6.1 确认启动cni插件
+
+   在work节点查看
+
+   ```bash
+   # vim /opt/kubernets/cfg/kubelet.conf
+   // --network-plugins=cni
+   ```
+
+   6.2  安装插件
+
+   1） 创建目录
+
+   ```bash
+   # mkdir -pv /opt/cni/bin /etc/cin/net.d
+   ```
+
+   用到的文件cni-plugins-linux-amd64
+
+   1. 安装CNI
+
+   ```bash
+   # tar xf cni-pkugins-linux-amd64-v.0.02.tgz -C /opt/cni/bin
+   ```
+
+   3）在master上执行yaml脚本，实现在work节点安装启动网络插件功能
+
+   ```bash
+   // 在master节点上执行
+   # kubelet apply -f kube-flannel.yaml
+   
+   // 删除用以下命令
+   # kubelet delete -f kube-flannel.yaml
+   ```
+
+   1. 授权apiserver可以访问kubelet
+
+   ```bash
+   # kubctl apply -f apiserver-to-kubelet-rbac.yaml
+   ```
+
+7. 部署nginx 示例,在master上操作的
+
+   ```bash
+   // 创建deployment,通过deployment来创建和管理nginx容器
+   # kubectl create deployment myweb --image=nginx:1.8
+   
+   // 查看deployment状态
+   # kubectl get deployment
+   
+   // 查看pods状态
+   # kubectl get pods 
+   
+   // 将端口暴露出来
+   # kubectl expose deployment myweb --port=80 --type=NodePort
+   
+   // 查看服务
+   // 查看将80端口映射到那个端口
+   # kubectl get service (简称svc)
+   // NAME    TYPE      CLUSTER-IP    EXTERNAL-IP    PORT(S)     AGE
+   // myweb   NodePort  10.0.0.18     <None>         80:30828    28s
+   
+   // 访问集群任意结点的30828来访问nginx
+   ```
