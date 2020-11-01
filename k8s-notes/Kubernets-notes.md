@@ -498,3 +498,282 @@ k8是否可以直接启动容器？
       --endpoints = "<https://192.168.12.13:2379>,<https://192.168.12.15:2379>,<https://192.168.12.16:2379>" \\
       cluster-health
       ```
+   
+4. 安装master
+
+   k8s 安装包下载地址 https://github.com/kubernetes/kubernetes/releases
+
+   官方地址: https://pkgs.org/download/kubernetes-master
+
+   需要用到一个安装包 k8s-master.tar.gz
+
+   ```bash
+   // 解压k8s-master.tar.gz
+   // 会生成三个文件和一个目录
+   // kube-apiserver.service kube-controller.manager.service kube-scheduler.service kubernets(文件夹)
+   
+   # mv kube-apiserver.service kube-controller-manager.service kube-scheduler.service /usr/lib/systemd/system/
+   # mv kubernets /opt/
+   # cp /root/TLS/k8s/{ca*pem,server.pem,server-key.pem} /opt/kubernets/ssl -rvf
+   
+   //修改apiserver配置文件
+   # vim /opt/kubernets/cfg/kube-apiserver.conf
+   // 内容如下
+   // KUBE_APISERVER_OPTS="--logtostderr-false \\
+   --v=2 \\
+   --log-dir=/opt/kubernets/logs \\
+   --etcd-server=https://192.168.12.13:2379,<https://192.168.12.15:2379>,<https://192.168.12.16:2379> \\ 
+   --bind-address=192.168.12.13 \\
+   --secure-port=6443 \\
+   --advertise-address=192.168.12.13 \\
+   --allow-priviledged=true \\
+   ~~-~~-service-cluster-ip-range=10.0.0.0/24 \\
+   --enable=admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQutia,NodeRestriction \\
+   --authorization-mode=RABC,Node \\
+   --enable-bootstrap-token-auth=true \\
+   --token-auth-file=/opt/kubernets/cfg/token.csv \\
+   --service-node-port=range=30000-32767 \\
+   --kubelet-client-certificate=/opt/kubernets/ssl/server.pem \\
+   --kubelet-client-key=/opt/kubernets/ssl/server-key.pem \\
+   --tls-cert-file=/opt/kubernets/ssl/server.pem \\
+   --tls-private-key-file=/opt/kubernets/ssl/server.pem \\
+   --client-ca-file=/opt/kubernets/ssl/ca.pem \\
+   --service-account-key-file=/opt/kubernets/ss/ca-key.pem \\
+   --etcd-cafile=/opt/etcd/ssl/ca.pem \\
+   --etcd-certfile=/opt/etcd/ssl/server.pem \\
+   --etcd-keyfile=/opt/etcd/ss/server-key.pem \\
+   --audit-log-maxage=30 \\
+   --audit-log=maxbackup=3 \\
+   --audit-log-maxsize=100 \\
+   --audit-log-path=/opt/kubernets/logs/k8s-audit.log"
+   
+   // 修改kube-controller-manager配置文件
+   # vim /opt/kubernets/cfg/kube-controller-manager.conf
+   // 内容如下
+   // KUBE_CONTROLLER_MANAGER_OPTS="--logtostderr=false \\
+   --v=2 \\
+   --log-dir=/opt/kubernets/logs \\
+   --leader-elect=true \\
+   --master=127.0.0.1:8080 \\
+   --address=127.0.0.1 \\
+   --allocate-node-cidrs=true \\
+   --cluster=cidr=10.244.0.0.0/16 \\
+   --service-cluster-ip-range=10.0.0.0/24 \\
+   --cluster=signing-cert-file=/opt/kubernets/ssl/ca.pem\\
+   --cluster=signing-key-file=/opt/kubernets/ssl/ca-key.pem \\
+   --root-ca-file=/opt/kubernets/ssl/ca.pem \\
+   --service-account-private-key-file=/opt/kuberntes/ssl/ca-key.pem \\
+   --exprimental-cluster-signing-duration=87600h0m0s"
+   
+   // 修改kube-scheduler配置文件
+   # vim /opt/kubernets/cfg/kube-scheduler.conf
+   // 内容如下
+   // KUBE_SCHEDULER_OPTS="--logtostderr=false \\
+   --v=2 \\
+   --log-dit=/opt/kubernets/logs \\
+   --leader-elect \\
+   --master=127.0.0.1:8080 \\
+   --address=127.0.0.1"
+   
+   // 启动服务
+   # systemctl start kube-apiserver
+   # ssytemctl start kube-schedule
+   # systemctl start kube-controller-manager
+   
+   // 设置开机启动
+   # systemctl enable kube-apiserver
+   # systemctl enable kune-schedule
+   # systemctl enable kube-controller-manager
+   
+   // 验证服务
+   # ps aux | grep kube
+   
+   // 查看日志
+   # tail =f /opt/kubernets/logs/kube-apiserver.INFO
+   
+   // kubectl命令
+   # cp /opt/kubernets/bin/kubectl /bin
+   
+   // 配置tls基于bootstrap自动颁发证书
+   // kube-apiserver配置文件里面的内容
+   // --enable-bootstrap-token-auth=true \\
+   // --token-auth-file=/opt/kubernets/cfg/token.csv
+   # cat /opt/kubernets/cfg/token.csv
+   // c47ffb939f5ca36231d9e3121a252940,kubelet-bootstrap,1001,"system:node-bootstrapper"
+   
+   // 启用TSL授权
+   # kubectl create clusterrolebinding kubelet-bootstrap \\
+   --clusterrole=system:node-bootstrapper \\
+   --user=kubectl-bootstrap
+   // 这里里面的内容跟上面csv里面的用户保持对应
+   
+   // 检查是否启动成功
+   # kubectl get cs
+   ```
+
+5. 部署work-node组件
+
+   node 组件对应的有
+
+   5.1 work-node组件介绍
+
+   docker：用来启动容器
+
+   kubelet：用来接收api的指令，然后控制docker容器
+
+   kube-proxy：为work上的容器配置网络工作
+
+   5.2 安装部署
+
+   5.2.1 docker 安装
+
+   文件 k8s-node.tar.gz
+
+   ```bash
+   // 解压
+   # tar -zxvf k8s-node.tar.gz
+   // docker-18.09.6.tgz docker.server daemon.json
+   # mv docker.service /usr/lib/systemd/system
+   # mkdir /etc/docker
+   # mv daemon.json /etc/docker
+   # tar xf docker-18.09.6.tgz
+   // 生成docker文件
+   # ls docker
+   // containerd containerd-shim ctr docker dockerd docker-init docker-proxy runc
+   # mc docker/* /bin
+   
+   // 启动docker
+   # systemctl start docker 
+   
+   // 开机启动
+   # systemctl enable docker 
+   ```
+
+   用来接收api的指令，然后控制docker容器
+
+   5.2.2 kubelet 安装
+
+   解压 k8s-node.tar.gz 会生成一个目录kubernets, 两个脚本kubelet.service, kub-proxy.service
+
+   ```bash
+   # ls kubernets/
+   // bin cfg logs ssl
+   
+   # mv kubelet.service kube-proxy.service /usr/lib/systemd/system
+   # mv kubernets /opt 
+   // 移动位置是由上面两个service文件决定的
+   
+   // 1. 修改配置文件kube-proxy.kubeconfig 文件
+   # vim /opt/kubernets/cfg/kube-proxy.kubeconfig
+   // 内容如下
+   //  ApiVersion: v1
+   //  clusters:
+   //  - cluster:
+   //      certificate-authority: /opt/kubernets/ssl/ca.pem
+   //      server: <https://192.168.12.13:6443> // master ip地址
+   //    name: kubernets
+   //  contexts:
+   //  - context:
+   //      cluster: kubernets
+   //      user: kube-proxy
+   //    name: default
+   //  current-context: default
+   //  kind: Config
+   //  preferences: {}
+   //  users: 
+   //  - name: kube-proxy
+   //  user:
+   //    client-certificate: /opt/kubernets/ssl/kube-proxy.pem
+   //    client-key: /opt/kubernets/ssl/kube-proxy.pem
+   
+   // 修改server: <https://192.168.12.13:6443> 改为master ip
+   
+   // 2. 修改kube-config.yml
+   # vim /opt/kubernets/cfg/kube-proxykube-config.yml
+   // 内容如下
+   //  kind: kubeProxyConfiguration
+   //  apiVersion: kubeproxy.config.k8s.io/vlalphal
+   //  address: 0.0.0.0
+   //  metricsBindAddess: 0.0.0.0:10249
+   //  clientConnection:
+   //    kubeconfig: /opt/kubernets/cfg/kube-proxy.kuberconofig
+   //  hostnameOverride: k8s-node1
+   //  mode: ipvs
+   //  ipvs:
+   //    scheduler: "rr"
+   //  iptables:
+   //    masqueradAll: true
+   
+   // 确定hostnameOverride为当前服务器主机名
+   
+   // 3. 修改kube-proxy.conf 文件
+   # vim /opt/kubernets/cfg/kube-proxy.conf
+   // 内容如下
+   //  KUBE_PROXY_OPTS="--logtostderr=false \\
+   --v=2\\
+   --log-dir=/opt/kubernets/logs \\
+   --config=/opt/kubernets/cfg.kube-proxy-config.yml"
+   
+   // kubectl-config.yml 不需要修改
+   
+   // 4. 修改kubeclt.conf
+   # vim /opt/kubernets/cfg/kubelet.conf
+   // 内容如下
+   // KUBELET_OPTS="--logtostderr=false \\
+   --v=2 \\
+   --log-dir=/opt/kubernets/logs \\
+   --hostname-override=k8s-node1 \\
+   --network-plugins=cni \\ // 支持cni插件
+   --kubeconfig=/opt/kubernets/cfg/kubelet.kubeconfig \\
+   --bootstrap-kubeconfig=/opt/kubernets/cfg/kubelet-config.yml \\
+   --config=/opt/kubernets/cfg/kubelet-config.yml \\
+   --cert-dir=/opt/kubernets/ssl \\
+   --pof-infra-container-image=lizhenliang/pause-amd64:3.0"
+   
+   // 5. 修改bootstrap.kubeconfig
+   
+   // 只需要修改server内容
+   // server: <http://192.168.12.13:6443>
+   ```
+
+   5.2.3  从master节点复制证书到node节点
+
+   ```bash
+   // 需要复制的内容有 
+   // master 节点(192.168.12.13) /root/TLS/k8s下面
+   // ca.pem ,kube-proxy.pem, kube-proxy-key.pem
+   // 将上述三个文件复制到k8s-node1节点 /opt/kubernets/ssl/ 目录下```
+   ```
+
+   5.2.4 启动服务
+
+   ```bash
+   # systemctl start kube-proxy
+   # system start kubelet
+   
+   # systemctl enable kube-proxy
+   # systemctl enable kubelet
+   ```
+
+   5.2.5 在master节点为work-node颁发证书
+
+   ```bash
+   // 在master节点执行 
+   # kubelet get csr
+   // NAME                                                  AGE           REQUESTOR           CONNECTION
+   // node-csr-Uv61q1janAJ0ApprHc9RcSPV0qSsD-Z4qDdapAvsWo   6m6s          kubelet-bootstrap   pending 
+   
+   // 颁发证书
+   # kubectl certificate approve  node-csr-Uv61q1janAJ0ApprHc9RcSPV0qSsD-Z4qDdapAvsWo 
+   // 执行后即可颁发证书
+   
+   # kubelet get csr
+   // NAME                                                  AGE           REQUESTOR           CONNECTION
+   // node-csr-Uv61q1janAJ0ApprHc9RcSPV0qSsD-Z4qDdapAvsWo   6m6s          kubelet-bootstrap   Approved,Issued
+   ```
+
+   5.2.6  给work节点颁发证书后，就可以看到节点了
+
+   ```bash
+   # kubeclt get nodes
+   ```
