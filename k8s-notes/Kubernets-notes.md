@@ -823,7 +823,7 @@ k8是否可以直接启动容器？
 
 7. 部署nginx 示例,在master上操作的
 
-   ```bash
+   ```
    // 创建deployment,通过deployment来创建和管理nginx容器
    # kubectl create deployment myweb --image=nginx:1.8
    
@@ -844,3 +844,133 @@ k8是否可以直接启动容器？
    
    // 访问集群任意结点的30828来访问nginx
    ```
+   
+8. web插件
+
+   官方 kubernets dashboard
+
+   第三方 kuboard
+
+   安装kubard
+
+   ```bash
+   # vim start_kubboard.yml
+   // 指定希望kueoard运行在哪个节点: -name: k8s-node1
+   
+   # kubectl apply -f start_kuboard.yaml
+   
+   # kubelet get pods -n kube-system
+   
+   // 查看kuboard暴露的端口
+   # kubectl get svc -n kube-system
+   
+   // 生成token
+   # kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep kuboard-user | awk '{print $1}') -o -go-template='{{.data.token}}' | base64 -d
+   ```
+
+9. coredns 安装
+
+   k8s中用来实习那名称解析的是CornDNS
+
+10. 远程管理k8s
+
+   默认情况下，k8s仅仅可以在master结点进行管理操作。
+
+   (可以百度搜下kubelet 远程管理k8s)
+
+   在work节点管理k8s集群
+
+   1） 将管理工具复制到work节点
+
+   ```bash
+   # scp /bin/kubelet root@k8s-node1:/bin
+   ```
+
+   2）生成一个管理员证书
+
+   ```bash
+   # cd /root.TLS/k8s
+   # vim admin-csr.json
+   ```
+
+   写入如下内容
+
+   ```json
+   {
+   	"CN": "admin",
+   	"hosts": [],
+   	"key": {
+   		"algo": "rsa",
+   		"siza": "2040",
+   	},
+   	"names": [
+   		{
+   			"C": "CN",
+   			"L": "BeiJing",
+   			"ST": "Beijing",
+   			"o": "system.master",
+   			"CU": "System"
+   		}
+   	]
+   }
+   ```
+
+   颁发admin证书
+
+   ```bash
+   # cfssl gencert -ca==ca.pem -ca-key=cakey.pem -config=ca-config.json -profile=kubernets admin-csr.json | cfssljson -bare admin
+   ```
+
+   3）创建kubeconfig文件
+
+   设置集群参数
+
+   ```bash
+   # kubectl config set-cluster kubernets \\
+   > --server="<http://192.168.12.13:6443>" \\   // master的ip
+   > --certificate-authority=ca.pem \\
+   > --embed-certs=true \\
+   > --kubeconfig=config
+   ```
+
+   设置认证的参数
+
+   ```bash
+   # kubectl config set-credenyials cluster-admin \\
+   > --certificate-authority=ca.pem \\
+   > --embed-certs=true \\
+   > --client-key=admin-key.pem \\
+   > --client-certificate=admin.pem \\
+   > --kubeconfig=config
+   ```
+
+   设置上下文
+
+   ```bash
+   # kubectl config set-context default \\
+   > --cluster=kubernetes \\
+   > --user=cluster-admin \\
+   > --kubeconfig=config
+   ```
+
+   执行完成后，会生成一个config文件
+
+   4）将kubeconfig文件发送到work节点
+
+   ```bash
+   # scp config root@k8s-node1:/root
+   ```
+
+   5)  在work节点，基于config实现执行kubectl命令
+
+   ```bash
+   # kubectl get nodes --kubeconfig=config
+   // 这样使用需要加 --kubeconfig=config
+   // 接下来配置config
+   # mv /root/config /root/.kube/
+   // 即可正常执行了
+   ```
+
+11. 
+
+    
